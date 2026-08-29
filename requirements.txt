@@ -6,7 +6,7 @@ Django==6.0.6
 djangorestframework==3.18.0
 gunicorn==26.2.0
 idna==3.18
-psycopg2-binary==2.9.12
+psycopg[binary]
 requests==2.34.2
 sqlparse==0.5.5
 tzdata==2026.2
