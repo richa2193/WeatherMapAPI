@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroCast | Premium Weather Insights</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        heading: ['Poppins', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'fade-in': 'fadeIn 0.6s ease-out forwards',
+                        'slide-up': 'slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(24px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-panel {
+            background: rgba(18, 18, 18, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(249, 115, 22, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 20px -8px rgba(249, 115, 22, 0.15);
+        }
+        body {
+            background-attachment: fixed;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-black via-zinc-950 via-60% to-orange-950 text-stone-100 font-sans antialiased overflow-x-hidden relative flex flex-col justify-between">
+    <canvas id="bg" class="fixed inset-0 w-full h-full pointer-events-none -z-20"></canvas>
+
+    <!-- Background Orbs -->
+    <div class="absolute top-0 right-0 w-[450px] h-[450px] bg-orange-600/10 rounded-full blur-[130px] pointer-events-none"></div>
+    <div class="absolute bottom-10 left-0 w-[550px] h-[550px] bg-amber-700/8 rounded-full blur-[150px] pointer-events-none"></div>
+
+    <!-- Main Container -->
+    <main class="w-full max-w-4xl mx-auto px-4 py-8 sm:py-12 flex-grow flex flex-col justify-center relative z-10">
+        
+        <!-- Header -->
+        <header class="text-center mb-8 animate-fade-in">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 backdrop-blur-md">
+                <span class="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-orange-400">Live Weather Radar</span>
+            </div>
+            <h1 class="font-heading text-4xl sm:text-5xl font-extrabold tracking-tight mb-2">
+                <span class="bg-gradient-to-r from-orange-400 via-amber-400 to-orange-500 bg-clip-text text-transparent">AeroCast</span>
+            </h1>
+            <p class="text-stone-400 text-sm sm:text-base font-light">Enter a city to retrieve precise meteorological analysis and conditions.</p>
+        </header>
+
+        <!-- Search Bar Section -->
+        <section class="max-w-xl w-full mx-auto mb-8 animate-slide-up" style="animation-delay: 0.1s;">
+            <form method="POST" class="relative group">
+                {% csrf_token %}
+                <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none text-stone-400 group-focus-within:text-orange-500 transition-colors">
+                    <!-- Search Icon SVG -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <input 
+                    type="text" 
+                    name="city" 
+                    value="{{ searched_city|default:'' }}"
+                    placeholder="Search city (e.g. Rajkot, Tokyo, London)..." 
+                    required
+                    class="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-32 py-4 text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 backdrop-blur-md transition-all duration-300 text-base sm:text-lg shadow-xl"
+                />
+                <button 
+                    type="submit" 
+                    class="absolute right-2 top-2 bottom-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-medium px-5 sm:px-6 rounded-xl shadow-lg hover:shadow-orange-500/25 active:scale-95 transition-all duration-200 text-sm sm:text-base flex items-center justify-center gap-1.5"
+                >
+                    Analyze
+                </button>
+            </form>
+        </section>
+
+        <!-- Error Notification -->
+        {% if error_message %}
+        <section class="max-w-xl w-full mx-auto mb-8 animate-fade-in">
+            <div class="glass-panel border-red-500/30 bg-red-950/20 text-red-200 rounded-2xl p-4 flex items-start gap-3 shadow-xl">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                    <h3 class="font-semibold text-sm">Query Failed</h3>
+                    <p class="text-xs text-red-300/90 mt-0.5">{{ error_message }}</p>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Weather Display Section -->
+        {% if weather %}
+        <section class="space-y-6 sm:space-y-8 animate-slide-up" style="animation-delay: 0.2s;">
+            
+            <!-- Main Hero Weather Card -->
+            <div class="glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <!-- Decorative Subtle Background Glow of the Main Card -->
+                <div class="absolute -right-24 -top-24 w-64 h-64 bg-orange-500/5 rounded-full blur-[80px] pointer-events-none"></div>
+                
+                <!-- Left: City & Date & Temperature -->
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <h2 class="text-2xl sm:text-3xl font-bold tracking-tight font-heading text-white">{{ weather.city_name }}</h2>
+                            <span class="px-2 py-0.5 rounded bg-orange-500/20 border border-orange-500/30 text-xs font-semibold text-orange-300 uppercase">
+                                {{ weather.country }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-stone-400 font-light flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Lat: {{ weather.lat|stringformat:".2f" }} | Lon: {{ weather.lon|stringformat:".2f" }}
+                        </p>
+                        <p class="text-xs sm:text-sm text-stone-300 mt-2 font-medium">Local Time: {{ weather.updated_at }}</p>
+                    </div>
+
+                    <div class="flex items-baseline gap-4">
+                        <div class="flex items-start">
+                            <span class="text-5xl sm:text-7xl font-extrabold tracking-tighter text-white font-heading">{{ weather.temp_c }}</span>
+                            <span class="text-2xl sm:text-3xl font-medium text-orange-400 mt-1 sm:mt-2">°C</span>
+                        </div>
+                        <div class="border-l border-white/10 pl-4 py-1">
+                            <div class="text-stone-300 font-semibold text-lg sm:text-xl">{{ weather.temp_f }} °F</div>
+                            <div class="text-[11px] uppercase tracking-wider text-stone-500 font-bold">Equivalent</div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-sm text-stone-300">
+                        <div>Feels like <span class="font-semibold text-white">{{ weather.feels_like_c }}°C</span> ({{ weather.feels_like_f }}°F)</div>
+                        <div class="text-stone-600 hidden sm:inline">|</div>
+                        <div>Range: <span class="font-semibold text-white">{{ weather.temp_min_c }}°C</span> to <span class="font-semibold text-white">{{ weather.temp_max_c }}°C</span></div>
+                    </div>
+                </div>
+
+                <!-- Right: Icon and Description -->
+                <div class="flex flex-row md:flex-col items-center justify-between md:justify-center md:text-center border-t border-white/5 md:border-t-0 pt-4 md:pt-0 gap-3">
+                    <div class="relative group/icon">
+                        <!-- Icon Background Glow -->
+                        <div class="absolute inset-0 bg-gradient-to-tr from-orange-500/20 to-amber-500/20 rounded-full blur-xl group-hover/icon:scale-110 transition-transform duration-500 animate-pulse-slow"></div>
+                        <img 
+                            src="https://openweathermap.org/img/wn/{{ weather.weather_icon }}@2x.png" 
+                            alt="{{ weather.weather_main }}"
+                            class="w-24 h-24 sm:w-28 sm:h-28 relative z-10 animate-float drop-shadow-[0_8px_16px_rgba(249,115,22,0.3)]"
+                        />
+                    </div>
+                    <div>
+                        <div class="text-lg sm:text-xl font-bold text-white tracking-wide font-heading leading-tight">{{ weather.weather_main }}</div>
+                        <div class="text-xs sm:text-sm text-stone-400 font-light mt-0.5">{{ weather.weather_desc }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+                
+                <!-- Wind Card -->
+                <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between min-h-[140px] relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs sm:text-sm text-stone-400 font-medium">Wind Condition</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-xl sm:text-2xl font-bold text-white tracking-tight">{{ weather.wind_speed_kmh }} <span class="text-xs sm:text-sm font-medium text-stone-400">km/h</span></div>
+                        <div class="text-xs text-stone-400 mt-0.5">{{ weather.wind_speed_mph }} mph</div>
+                    </div>
+                    <div class="flex items-center gap-1.5 mt-3 pt-2 border-t border-white/5 text-[11px] sm:text-xs text-stone-300 font-medium">
+                        <!-- Compass Arrow rotating dynamically -->
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-orange-400 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="transform: rotate({{ weather.wind_deg }}deg);">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 11l3-3m0 0l3 3m-3-3v8" />
+                        </svg>
+                        <span>{{ weather.wind_direction }} ({{ weather.wind_deg }}°)</span>
+                    </div>
+                </div>
+
+                <!-- Humidity Card -->
+                <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between min-h-[140px]">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs sm:text-sm text-stone-400 font-medium">Humidity</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-xl sm:text-2xl font-bold text-white tracking-tight">{{ weather.humidity }}<span class="text-lg font-medium text-orange-400">%</span></div>
+                        <!-- Progress bar -->
+                        <div class="w-full bg-white/5 rounded-full h-1.5 mt-2">
+                            <div class="bg-gradient-to-r from-orange-500 to-amber-400 h-1.5 rounded-full" style="width: {{ weather.humidity }}%"></div>
+                        </div>
+                    </div>
+                    <div class="text-[11px] sm:text-xs text-stone-400 mt-3 pt-2 border-t border-white/5">
+                        Status: 
+                        <span class="text-stone-200 font-medium">
+                            {% if weather.humidity < 40 %}
+                                Dry
+                            {% elif weather.humidity <= 60 %}
+                                Pleasant
+                            {% else %}
+                                Humid
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Barometric Pressure Card -->
+                <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between min-h-[140px]">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs sm:text-sm text-stone-400 font-medium">Air Pressure</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-xl sm:text-2xl font-bold text-white tracking-tight">{{ weather.pressure }} <span class="text-xs sm:text-sm font-medium text-stone-400">hPa</span></div>
+                    </div>
+                    <div class="text-[11px] sm:text-xs text-stone-400 mt-3 pt-2 border-t border-white/5">
+                        Index: 
+                        <span class="text-stone-200 font-medium">
+                            {% if weather.pressure < 1009 %}
+                                Low Pressure
+                            {% elif weather.pressure <= 1022 %}
+                                Standard
+                            {% else %}
+                                High Pressure
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Sun Schedule Card -->
+                <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between min-h-[140px] col-span-2 sm:col-span-1">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs sm:text-sm text-stone-400 font-medium">Sun Schedule</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m2.828-9.9a5 5 0 117.072 0l-.707.707M6.343 6.343l.707.707m9.9 9.9l.707.707" />
+                        </svg>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-stone-200">
+                        <div class="border-r border-white/5 pr-2">
+                            <div class="text-[10px] text-stone-500 uppercase font-bold">Sunrise</div>
+                            <div class="text-sm sm:text-base font-semibold text-orange-300">{{ weather.sunrise }}</div>
+                        </div>
+                        <div class="pl-2">
+                            <div class="text-[10px] text-stone-500 uppercase font-bold">Sunset</div>
+                            <div class="text-sm sm:text-base font-semibold text-amber-500">{{ weather.sunset }}</div>
+                        </div>
+                    </div>
+                    <div class="text-[10px] text-stone-500 mt-2 font-medium text-center bg-white/5 rounded py-0.5">Local times</div>
+                </div>
+
+                <!-- Visibility Card -->
+                <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between min-h-[140px]">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs sm:text-sm text-stone-400 font-medium">Visibility</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-xl sm:text-2xl font-bold text-white tracking-tight">{{ weather.visibility_km }} <span class="text-xs sm:text-sm font-medium text-stone-400">km</span></div>
+                        <div class="text-xs text-stone-400 mt-0.5">{{ weather.visibility_mi }} miles</div>
+                    </div>
+                    <div class="text-[11px] sm:text-xs text-stone-400 mt-3 pt-2 border-t border-white/5">
+                        Status: 
+                        <span class="text-stone-200 font-medium">
+                            {% if weather.visibility_km > 8 %}
+                                Perfect
+                            {% elif weather.visibility_km > 3 %}
+                                Moderate
+                            {% else %}
+                                Low
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Cloudiness Card -->
+                <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between min-h-[140px]">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs sm:text-sm text-stone-400 font-medium">Cloudiness</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-xl sm:text-2xl font-bold text-white tracking-tight">{{ weather.clouds }}<span class="text-lg font-medium text-orange-400">%</span></div>
+                        <!-- Progress bar -->
+                        <div class="w-full bg-white/5 rounded-full h-1.5 mt-2">
+                            <div class="bg-gradient-to-r from-orange-500 to-amber-400 h-1.5 rounded-full" style="width: {{ weather.clouds }}%"></div>
+                        </div>
+                    </div>
+                    <div class="text-[11px] sm:text-xs text-stone-400 mt-3 pt-2 border-t border-white/5">
+                        Sky coverage
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+        {% endif %}
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full text-center py-6 border-t border-white/5 backdrop-blur-md relative z-10 mt-8">
+        <div class="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-stone-500 font-medium">
+            <p>© 2026 AeroCast. Engineered with OpenWeather API.</p>
+            <div class="flex gap-4">
+                <span class="text-stone-600">|</span>
+                <span class="text-stone-400">Tailwind CSS Design System</span>
+                <span class="text-stone-600">|</span>
+                <a href="#" class="hover:text-orange-400 transition-colors">Privacy</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{% static 'js/antigravity.js' %}"></script>
+
+</html>
